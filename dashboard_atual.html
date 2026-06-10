@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quadro de Enfermagem — SPDM 2026</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #F7F6F2;
+    --surface:  #FFFFFF;
+    --border:   rgba(0,0,0,0.08);
+    --text:     #1A1A1A;
+    --muted:    #6B6B6B;
+    --faint:    #AEADAA;
+    --enf:      #185FA5;
+    --enf-lt:   #E6F1FB;
+    --tec:      #BA7517;
+    --tec-lt:   #FAEEDA;
+    --accent:   #185FA5;
+    --radius:   10px;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  header p {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 20px;
+    background: #E1F5EE;
+    color: #085041;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* ── layout ── */
+  main { max-width: 900px; margin: 0 auto; padding: 28px 24px 48px; }
+
+  /* ── metrics ── */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .metric-label { font-size: 11px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .05em; }
+  .metric-value { font-size: 32px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+  .metric-sub   { font-size: 11px; color: var(--faint); margin-top: 4px; }
+  .metric-value.enf { color: var(--enf); }
+  .metric-value.tec { color: var(--tec); }
+
+  /* ── tabs ── */
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    font-size: 13px;
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    transition: color .15s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.on { color: var(--accent); border-bottom-color: var(--accent); font-weight: 500; }
+
+  /* ── cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .card-sub   { font-size: 12px; color: var(--muted); margin-bottom: 16px; }
+
+  /* ── legend ── */
+  .legend { display: flex; gap: 16px; margin-bottom: 12px; flex-wrap: wrap; }
+  .leg-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .leg-sq { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── filter buttons ── */
+  .filters { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .fb {
+    font-size: 12px; padding: 5px 13px; cursor: pointer;
+    border-radius: 20px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted);
+    transition: all .15s; font-family: inherit;
+  }
+  .fb:hover { border-color: var(--accent); color: var(--accent); }
+  .fb.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+
+  /* ── ratio bars ── */
+  .rb-wrap { margin-bottom: 10px; }
+  .rb-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+  .rb-label strong { color: var(--text); font-weight: 500; }
+  .rb-bar { height: 22px; border-radius: 5px; display: flex; overflow: hidden; }
+  .rb-enf { background: var(--enf); }
+  .rb-tec { background: var(--tec); }
+  .rb-legend { display: flex; gap: 16px; margin-top: 12px; margin-bottom: 20px; }
+  .rb-leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+
+  /* ── pie grid ── */
+  .pie-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+  /* ── table ── */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; table-layout: fixed; }
+  colgroup col:first-child { width: 160px; }
+  th, td { padding: 7px 6px; }
+  th { font-weight: 500; font-size: 11px; color: var(--muted); text-align: center; border-bottom: 1px solid var(--border); }
+  th.left, td.nm { text-align: left; padding-left: 8px; color: var(--text); }
+  td { text-align: center; color: var(--muted); }
+  td.enf { color: var(--enf); font-weight: 500; }
+  td.tec { color: var(--tec); font-weight: 500; }
+  td.tot { font-weight: 600; color: var(--text); background: #FAFAF8; }
+  tr:nth-child(even) td { background: #FAFAF8; }
+  tr:nth-child(even) td.tot { background: #F3F2EE; }
+  .tbl-foot td { border-top: 1px solid var(--border); font-weight: 600; color: var(--text); background: var(--bg) !important; }
+  .tbl-foot td.enf { color: var(--enf); }
+  .tbl-foot td.tec { color: var(--tec); }
+  .ccih-row td { border-top: 1px solid var(--border); font-style: italic; }
+  .dash { color: var(--faint); }
+
+  /* ── responsive ── */
+  @media (max-width: 640px) {
+    main { padding: 16px 12px 40px; }
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    header { padding: 16px 16px; }
+    .pie-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Quadro de Enfermagem <span class="badge">✓ Junho 2026</span></h1>
+    <p>SPDM · Categorias profissionais por unidade de internação e plantão</p>
+  </div>
+</header>
+
+<main>
+
+  <!-- métricas -->
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Total geral</div>
+      <div class="metric-value">258</div>
+      <div class="metric-sub">profissionais ativos</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Enfermeiros(as)</div>
+      <div class="metric-value enf">97</div>
+      <div class="metric-sub">38% do quadro</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Técnicos de enf.</div>
+      <div class="metric-value tec">161</div>
+      <div class="metric-sub">62% do quadro</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Setores / unidades</div>
+      <div class="metric-value">8</div>
+      <div class="metric-sub">internação + CCIH</div>
+    </div>
+  </div>
+
+  <!-- tabs -->
+  <div class="tabs">
+    <button class="tab on" onclick="sw('vg')" id="t-vg">Visão geral</button>
+    <button class="tab" onclick="sw('pl')" id="t-pl">Por plantão</button>
+    <button class="tab" onclick="sw('rt')" id="t-rt">Proporção</button>
+    <button class="tab" onclick="sw('tb')" id="t-tb">Tabela completa</button>
+  </div>
+
+  <!-- visão geral -->
+  <div id="v-vg">
+    <div class="legend">
+      <div class="leg-item"><div class="leg-sq" style="background:var(--enf)"></div>Enfermeiro(a)</div>
+      <div class="leg-item"><div class="leg-sq" style="background:var(--tec)"></div>Técnico de enfermagem</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Total por unidade de internação</div>
+      <div class="card-sub">Todos os plantões somados · dados verificados linha a linha</div>
+      <div style="position:relative;width:100%;height:300px">
+        <canvas id="ch-vg" role="img" aria-label="Barras agrupadas de enfermeiros e técnicos por unidade"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- por plantão -->
+  <div id="v-pl" style="display:none">
+    <div class="filters">
+      <button class="fb on" onclick="sp('DA')" id="p-DA">Diurno A</button>
+      <button class="fb" onclick="sp('DB')" id="p-DB">Diurno B</button>
+      <button class="fb" onclick="sp('NA')" id="p-NA">Noturno A</button>
+      <button class="fb" onclick="sp('NB')" id="p-NB">Noturno B</button>
+    </div>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-sq" style="background:var(--enf)"></div>Enfermeiro(a)</div>
+      <div class="leg-item"><div class="leg-sq" style="background:var(--tec)"></div>Técnico de enfermagem</div>
+    </div>
+    <div class="card">
+      <div class="card-title" id="pl-title">Plantão Diurno A — por unidade</div>
+      <div class="card-sub">Profissionais escalados neste plantão em cada setor</div>
+      <div style="position:relative;width:100%;height:300px">
+        <canvas id="ch-pl" role="img" aria-label="Barras por plantão e setor"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- proporção -->
+  <div id="v-rt" style="display:none">
+    <div class="card">
+      <div class="card-title">Razão Enfermeiro / Técnico por unidade</div>
+      <div class="card-sub">Percentual do total de cada setor</div>
+      <div class="rb-legend">
+        <div class="rb-leg-item"><div class="leg-sq" style="background:var(--enf)"></div>Enfermeiro(a)</div>
+        <div class="rb-leg-item"><div class="leg-sq" style="background:var(--tec)"></div>Técnico de enfermagem</div>
+      </div>
+      <div id="rbars"></div>
+    </div>
+    <div class="pie-grid">
+      <div class="card">
+        <div class="card-title">Enfermeiros por setor</div>
+        <div class="card-sub">97 profissionais</div>
+        <div style="position:relative;width:100%;height:220px">
+          <canvas id="ch-pe" role="img" aria-label="Distribuição de enfermeiros por setor"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Técnicos por setor</div>
+        <div class="card-sub">161 profissionais</div>
+        <div style="position:relative;width:100%;height:220px">
+          <canvas id="ch-pt" role="img" aria-label="Distribuição de técnicos por setor"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- tabela -->
+  <div id="v-tb" style="display:none">
+    <div class="card">
+      <div class="card-title">Distribuição completa — todos os plantões</div>
+      <div class="card-sub">Enf = Enfermeiro(a) · Téc = Técnico de enfermagem · dados lidos diretamente da planilha reorganizada</div>
+      <div class="tbl-wrap">
+        <table>
+          <colgroup>
+            <col><col><col><col><col><col><col><col><col><col>
+          </colgroup>
+          <thead>
+            <tr>
+              <th class="left" rowspan="2" style="vertical-align:bottom">Unidade</th>
+              <th colspan="2" style="color:var(--enf)">Diurno A</th>
+              <th colspan="2" style="color:var(--enf)">Diurno B</th>
+              <th colspan="2" style="color:#534AB7">Noturno A</th>
+              <th colspan="2" style="color:#534AB7">Noturno B</th>
+              <th rowspan="2" style="vertical-align:bottom">Total</th>
+            </tr>
+            <tr>
+              <th style="color:var(--enf);font-weight:400">Enf</th><th style="color:var(--tec);font-weight:400">Téc</th>
+              <th style="color:var(--enf);font-weight:400">Enf</th><th style="color:var(--tec);font-weight:400">Téc</th>
+              <th style="color:#534AB7;font-weight:400">Enf</th><th style="color:var(--tec);font-weight:400">Téc</th>
+              <th style="color:#534AB7;font-weight:400">Enf</th><th style="color:var(--tec);font-weight:400">Téc</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+const SK = ['4º UTI-NEONATAL','5º PEDIATRIA','6º CLÍNICA MÉDICA','7º CLINICA CIRURGICA','8º ORT/VASC/NCR','CC/CME','QUEIMADOS','CCIH'];
+const SL = ['4º UTI-Neonatal','5º Pediatria','6º Clín. Médica','7º Clín. Cirúrgica','8º ORT/VASC/NCR','CC/CME','Queimados','CCIH'];
+const PAL = ['#185FA5','#BA7517','#0F6E56','#993C1D','#534AB7','#993556','#3B6D11','#5F5E5A'];
+const PL_LABELS = { DA:'Diurno A', DB:'Diurno B', NA:'Noturno A', NB:'Noturno B' };
+
+const D = {
+  '4º UTI-NEONATAL':     { e:{DA:1,DB:0,NA:1,NB:0}, t:{DA:1,DB:2,NA:3,NB:3} },
+  '5º PEDIATRIA':        { e:{DA:0,DB:1,NA:2,NB:1}, t:{DA:3,DB:2,NA:3,NB:4} },
+  '6º CLÍNICA MÉDICA':   { e:{DA:7,DB:4,NA:5,NB:5}, t:{DA:7,DB:12,NA:7,NB:6} },
+  '7º CLINICA CIRURGICA':{ e:{DA:4,DB:4,NA:4,NB:6}, t:{DA:10,DB:9,NA:4,NB:4} },
+  '8º ORT/VASC/NCR':     { e:{DA:6,DB:4,NA:4,NB:5}, t:{DA:10,DB:8,NA:2,NB:4} },
+  'CC/CME':              { e:{DA:5,DB:5,NA:4,NB:3}, t:{DA:16,DB:13,NA:6,NB:10} },
+  'QUEIMADOS':           { e:{DA:5,DB:4,NA:1,NB:4}, t:{DA:5,DB:5,NA:1,NB:1} },
+  'CCIH':                { e:{DA:1,DB:1,NA:0,NB:0}, t:{DA:0,DB:0,NA:0,NB:0} },
+};
+
+const sE = s => { const d=D[s].e; return d.DA+d.DB+d.NA+d.NB; };
+const sT = s => { const d=D[s].t; return d.DA+d.DB+d.NA+d.NB; };
+
+let cVG=null, cPL=null, cPE=null, cPT=null, curK='DA';
+
+const ENF_COL = '#185FA5', TEC_COL = '#BA7517';
+
+const baseOpts = (labels, ds) => ({
+  type: 'bar',
+  data: { labels, datasets: ds },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display:false }, tooltip: { callbacks: { title: t => SL[t[0].dataIndex] } } },
+    scales: {
+      x: { grid:{display:false}, ticks:{font:{size:11},color:'#888',maxRotation:30} },
+      y: { grid:{color:'rgba(0,0,0,.05)'}, ticks:{font:{size:11},color:'#888'}, beginAtZero:true }
+    }
+  }
+});
+
+function mkVG() {
+  if (cVG) cVG.destroy();
+  cVG = new Chart(document.getElementById('ch-vg').getContext('2d'), baseOpts(SL, [
+    { label:'Enfermeiro(a)', data:SK.map(sE), backgroundColor:ENF_COL, borderRadius:4 },
+    { label:'Técnico',       data:SK.map(sT), backgroundColor:TEC_COL, borderRadius:4 },
+  ]));
+}
+
+function mkPL(k) {
+  if (cPL) cPL.destroy();
+  cPL = new Chart(document.getElementById('ch-pl').getContext('2d'), baseOpts(SL, [
+    { label:'Enfermeiro(a)', data:SK.map(s=>D[s].e[k]), backgroundColor:ENF_COL, borderRadius:4 },
+    { label:'Técnico',       data:SK.map(s=>D[s].t[k]), backgroundColor:TEC_COL, borderRadius:4 },
+  ]));
+}
+
+function mkRT() {
+  const el = document.getElementById('rbars');
+  el.innerHTML = '';
+  SK.forEach((s, i) => {
+    const e=sE(s), t=sT(s), tot=e+t;
+    if (!tot) return;
+    const pe = Math.round(e/tot*100), pt = 100-pe;
+    el.innerHTML += `
+      <div class="rb-wrap">
+        <div class="rb-label"><span>${SL[i]}</span><strong>${e} Enf · ${t} Téc · total ${tot}</strong></div>
+        <div class="rb-bar">
+          <div class="rb-enf" style="width:${pe}%"></div>
+          <div class="rb-tec" style="width:${pt}%"></div>
+        </div>
+      </div>`;
+  });
+  const pie = (id, data, ref) => {
+    if (ref==='e' && cPE) cPE.destroy();
+    if (ref==='t' && cPT) cPT.destroy();
+    const c = new Chart(document.getElementById(id).getContext('2d'), {
+      type: 'doughnut',
+      data: { labels:SL, datasets:[{ data, backgroundColor:PAL, borderWidth:1, borderColor:'#fff' }] },
+      options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } }
+    });
+    if (ref==='e') cPE=c; else cPT=c;
+  };
+  pie('ch-pe', SK.map(sE), 'e');
+  pie('ch-pt', SK.map(sT), 't');
+}
+
+function mkTbl() {
+  const v = n => n===0 ? '<span class="dash">—</span>' : n;
+  let tE={DA:0,DB:0,NA:0,NB:0}, tT={DA:0,DB:0,NA:0,NB:0}, html='';
+  SK.forEach((s, i) => {
+    const e=D[s].e, t=D[s].t, tot=sE(s)+sT(s);
+    ['DA','DB','NA','NB'].forEach(k => { tE[k]+=e[k]; tT[k]+=t[k]; });
+    const cls = s==='CCIH' ? 'ccih-row' : '';
+    html += `<tr class="${cls}">
+      <td class="nm">${SL[i]}</td>
+      <td class="enf">${v(e.DA)}</td><td class="tec">${v(t.DA)}</td>
+      <td class="enf">${v(e.DB)}</td><td class="tec">${v(t.DB)}</td>
+      <td class="enf">${v(e.NA)}</td><td class="tec">${v(t.NA)}</td>
+      <td class="enf">${v(e.NB)}</td><td class="tec">${v(t.NB)}</td>
+      <td class="tot">${tot}</td>
+    </tr>`;
+  });
+  html += `<tr class="tbl-foot">
+    <td class="nm">Total</td>
+    <td class="enf">${tE.DA}</td><td class="tec">${tT.DA}</td>
+    <td class="enf">${tE.DB}</td><td class="tec">${tT.DB}</td>
+    <td class="enf">${tE.NA}</td><td class="tec">${tT.NA}</td>
+    <td class="enf">${tE.NB}</td><td class="tec">${tT.NB}</td>
+    <td class="tot">258</td>
+  </tr>`;
+  document.getElementById('tbl-body').innerHTML = html;
+}
+
+function sw(tab) {
+  ['vg','pl','rt','tb'].forEach(t => {
+    document.getElementById('v-'+t).style.display = t===tab ? 'block' : 'none';
+    document.getElementById('t-'+t).className = 'tab' + (t===tab ? ' on' : '');
+  });
+  if (tab==='vg') setTimeout(mkVG, 50);
+  if (tab==='pl') setTimeout(() => mkPL(curK), 50);
+  if (tab==='rt') setTimeout(mkRT, 50);
+  if (tab==='tb') setTimeout(mkTbl, 50);
+}
+
+function sp(k) {
+  curK = k;
+  ['DA','DB','NA','NB'].forEach(x => {
+    const el = document.getElementById('p-'+x);
+    if (el) el.className = 'fb' + (x===k ? ' on' : '');
+  });
+  document.getElementById('pl-title').textContent = 'Plantão ' + PL_LABELS[k] + ' — por unidade';
+  mkPL(k);
+}
+
+mkVG();
+</script>
+</body>
+</html>
